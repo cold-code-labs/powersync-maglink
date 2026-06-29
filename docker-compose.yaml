@@ -1,0 +1,59 @@
+services:
+  # Bucket storage for the PowerSync engine (its own Postgres, isolated).
+  pg-storage:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: "${PGPW}"
+    volumes:
+      - pg_storage_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      default: {}
+
+  # PowerSync engine. Replication source = db_maglink on the shared hauldr-db
+  # (reached via the `coolify` network alias). Storage = pg-storage above.
+  powersync:
+    image: journeyapps/powersync-service:latest
+    restart: unless-stopped
+    depends_on:
+      pg-storage:
+        condition: service_healthy
+    command: ["start", "-r", "unified"]
+    environment:
+      POWERSYNC_CONFIG_B64: "${SVC_B64}"
+      POWERSYNC_SYNC_CONFIG_B64: "${SYNC_B64}"
+      NODE_OPTIONS: --max-old-space-size=800
+      # Source: maglink's real project DB inside the Hauldr cluster (read-only repl role).
+      PS_DATA_SOURCE_URI: "postgres://powersync_repl:${REPL_PW}@hauldr-db:5432/db_maglink"
+      PS_STORAGE_SOURCE_URI: "postgres://postgres:${PGPW}@pg-storage:5432/postgres"
+      # GoTrue (Supabase) HS256 secret used to validate client JWTs.
+      PS_JWT_SECRET: "${PS_JWT_SECRET}"
+      # Diagnostics App / admin API token.
+      PS_ADMIN_TOKEN: "${PS_ADMIN_TOKEN}"
+      PS_PORT: "8080"
+    expose:
+      - "8080"
+    labels:
+      - traefik.docker.network=coolify
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/probes/liveness').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      default: {}
+      coolify: {}
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  pg_storage_data:

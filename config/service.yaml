@@ -1,0 +1,30 @@
+# PowerSync service config (canonical source for SVC_B64).
+# Secrets are injected via !env at runtime — safe to commit.
+# Rebuild the Coolify env:  base64 -w0 config/service.yaml
+telemetry:
+  disable_telemetry_sharing: true
+
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      sslmode: disable
+
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_SOURCE_URI
+  sslmode: disable
+
+port: !env PS_PORT
+
+# maglink clients send their GoTrue (Supabase) access token. Validate it with
+# the shared HS256 secret; user_id() = token `sub`, audience must be authenticated.
+client_auth:
+  supabase: true
+  supabase_jwt_secret: !env PS_JWT_SECRET
+  audience: ["authenticated"]
+
+# Token(s) for the PowerSync Diagnostics App / admin API.
+api:
+  tokens:
+    - !env PS_ADMIN_TOKEN

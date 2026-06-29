@@ -1,0 +1,15 @@
+# PowerSync sync rules (canonical source for SYNC_B64).
+# Rebuild the Coolify env:  base64 -w0 config/sync-rules.yaml
+#
+# Ativações is a shared workspace (RLS `for all to authenticated using(true)`),
+# so every signed-in staffer syncs every row — a single global stream, no
+# per-user filter. `auto_subscribe` keeps the kiosk in sync without an explicit
+# client subscription call.
+config:
+  edition: 3
+
+streams:
+  ativacoes:
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM ativacoes
