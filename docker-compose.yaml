@@ -19,7 +19,9 @@ services:
 
   # PowerSync engine. Replication source = db_maglink on the shared hauldr-db
   # (reached via the `coolify` network alias). Storage = pg-storage above.
-  powersync:
+  # NB: service name is intentionally unique (not "powersync") so its coolify
+  # network alias does not collide with the powersync-selfhost spike's engine.
+  powersync-maglink:
     image: journeyapps/powersync-service:latest
     restart: unless-stopped
     depends_on:
